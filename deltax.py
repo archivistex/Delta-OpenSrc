@@ -88,7 +88,7 @@ def _get_param(url, param):
     return values[0] if values else None
 
 def solve_captcha():
-    """Solve CAPTCHA via tirex-delta API - FAST!"""
+
     for attempt in range(37):
         try:
             resp = stdlib_requests.get("https://tirex-delta.vercel.app/api/solve", timeout=15).json()
@@ -258,10 +258,10 @@ def _get_metadata(ticket, session):
     return None
 
 def _bypass_loot(loot_url):
-    """Bypass ANY link using 93.115.101.152:13909 API"""
+
     try:
         r = stdlib_requests.get(
-            f"http://93.115.101.152:13909/freeapibypass?url={urllib.parse.quote(loot_url)}",
+            f"http://fi8.bot-hosting.net:21163/freeapibypass?url={urllib.parse.quote(loot_url)}",
             timeout=30
         ).json()
         if (r.get("status") == "success" or r.get("success")) and r.get("result"):
