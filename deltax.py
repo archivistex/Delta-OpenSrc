@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import numpy as np
 
-__version__ = "2.1.0"
+__version__ = "1.0.0"
 CHROME_VERSIONS = [120, 123, 124, 131, 136, 142]
 IMPERSONATE_MAP = {
     120: "chrome120", 123: "chrome123", 124: "chrome124",
