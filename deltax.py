@@ -91,7 +91,7 @@ def solve_captcha():
 
     for attempt in range(37):
         try:
-            resp = stdlib_requests.get("https://tirex-delta.vercel.app/api/solve", timeout=15).json()
+            resp = stdlib_requests.get("https://banana-solver.vercel.app/api/solver", timeout=15).json()
             if resp.get("success") and resp.get("token"):
                 return resp["token"]
         except Exception as e:
