@@ -1,2 +1,2 @@
-py deltax.py
+py delta.py
 pause
