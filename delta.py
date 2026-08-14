@@ -10,15 +10,18 @@ from cryptography.hazmat.backends import default_backend
 import numpy as np
 
 __version__ = "1.0.0"
+
 CHROME_VERSIONS = [120, 123, 124, 131, 136, 142]
 IMPERSONATE_MAP = {
     120: "chrome120", 123: "chrome123", 124: "chrome124",
     131: "chrome131", 136: "chrome136", 142: "chrome142",
 }
+
 SCREEN_RESOLUTIONS = [
     "1920x1080", "1366x768", "1536x864", "1440x900", "1280x720",
     "1600x900", "2560x1440", "1920x1200",
 ]
+
 PLATFORMS = {
     "Windows": {
         "ua":  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{v}.0.0.0 Safari/537.36",
@@ -36,6 +39,7 @@ PLATFORMS = {
         "sec": '"macOS"',
     },
 }
+
 LANGUAGES = [
     "en-US,en;q=0.9",
     "en-GB,en;q=0.8",
@@ -88,7 +92,6 @@ def _get_param(url, param):
     return values[0] if values else None
 
 def solve_captcha():
-
     for attempt in range(37):
         try:
             resp = stdlib_requests.get("https://banana-solver.vercel.app/api/solver", timeout=15).json()
@@ -121,26 +124,21 @@ def generate_stream(ticket: str, screen_width=1920, screen_height=1080) -> str:
                 px = random.randint(int(screen_width * 0.15), int(screen_width * 0.85))
                 py = random.randint(int(screen_height * 0.15), int(screen_height * 0.75))
                 ev(1, px, py, random.choice(["BUTTON", "A", "DIV"]), t)
-
             t_click = now - random.randint(120, 600)
             ev(1, btn_x + random.randint(-5, 5), btn_y + random.randint(-5, 5), "BUTTON", t_click)
             t_touch = t_click - random.randint(40, 140)
             ev(2, btn_x + random.randint(-8, 8), btn_y + random.randint(-8, 8), "BUTTON", t_touch)
-
         else:
             cx = random.randint(int(screen_width  * 0.10), int(screen_width  * 0.90))
             cy = random.randint(int(screen_height * 0.10), int(screen_height * 0.75))
             t  = now - random.randint(5000, 14000)
-
             IDLE_TAGS     = ["BODY", "DIV", "P", "H1", "H2", "SPAN"]
             APPROACH_TAGS = ["DIV", "SPAN", "BUTTON"]
-
             for _ in range(random.randint(2, 5)):
                 t  += random.randint(180, 1400)
                 cx  = cx + random.randint(-280, 280)
                 cy  = cy + random.randint(-180, 180)
                 ev(0, cx, cy, random.choice(IDLE_TAGS), t)
-
             n_app = random.randint(2, 4)
             for i in range(n_app):
                 t   += random.randint(50, 320)
@@ -149,14 +147,12 @@ def generate_stream(ticket: str, screen_width=1920, screen_height=1080) -> str:
                 cy   = cy + (btn_y - cy) * frac + random.randint(-6, 6)
                 tag  = "BUTTON" if i == n_app - 1 else random.choice(APPROACH_TAGS)
                 ev(0, cx, cy, tag, t)
-
             t_prior = now - random.randint(6000, 14000)
             for _ in range(random.randint(0, 3)):
                 t_prior += random.randint(600, 2800)
-                px = random.randint(int(screen_width  * 0.20), int(screen_width  * 0.80))
+                px = random.randint(int(screen_width  * 0.20), int(screen_width * 0.80))
                 py = random.randint(int(screen_height * 0.20), int(screen_height * 0.70))
                 ev(1, px, py, random.choice(["BUTTON", "A", "DIV", "SPAN"]), t_prior)
-
             t += random.randint(140, 700)
             t_click = t
             ev(1, btn_x + random.randint(-3, 3), btn_y + random.randint(-3, 3), "BUTTON", t_click)
@@ -164,7 +160,6 @@ def generate_stream(ticket: str, screen_width=1920, screen_height=1080) -> str:
             ev(0, btn_x + random.randint(-6, 6), btn_y + random.randint(-6, 6), "BUTTON", t_move)
 
         events.append({"event": 5, "data": {"time": now, "length": 0}})
-
         payload  = json.dumps({"events": events})
         key      = bytes(ord(c) for c in ticket[1:17])
         iv_bytes = bytes(ord(c) for c in ticket[17:33])
@@ -173,7 +168,6 @@ def generate_stream(ticket: str, screen_width=1920, screen_height=1080) -> str:
         return cipher.encrypt(payload.encode("utf-8")).hex()
     except Exception:
         return ""
-
 
 def getMeta(ticket: str, screen_res: str, user_agent: str, nav_platform: str) -> str:
     try:
@@ -257,28 +251,55 @@ def _get_metadata(ticket, session):
         pass
     return None
 
-def _bypass_loot(loot_url):
+PRIORITY = ["r", "url", "target", "dest", "destination", "redirect", "link", "go", "u", "href"]
+URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+")
 
+def try_decode(value):
+    if not value or len(value) < 16:
+        return None
+    value = value.strip().replace(" ", "+")
+    for candidate in (value, urllib.parse.unquote(value)):
+        for decoder in (base64.b64decode, base64.urlsafe_b64decode):
+            for source in (candidate, candidate + "=" * (-len(candidate) % 4)):
+                try:
+                    text = decoder(source).decode("utf-8", "ignore")
+                except Exception:
+                    continue
+                if text.startswith("http"):
+                    return text
+                match = URL_PATTERN.search(text)
+                if match:
+                    return match.group(0)
+    return None
+
+def extract_dynamic(url):
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    ordered = [key for key in PRIORITY if key in query] + [key for key in query if key not in PRIORITY]
+    for key in ordered:
+        for value in query[key]:
+            decoded = try_decode(value)
+            if decoded:
+                return decoded, key
+    return None, None
+
+def _bypass_loot(loot_url):
     try:
-        r = stdlib_requests.get(
-            f"http://fi8.bot-hosting.net:21163/freeapibypass?url={urllib.parse.quote(loot_url)}",
-            timeout=30
-        ).json()
-        if (r.get("status") == "success" or r.get("success")) and r.get("result"):
-            return r["result"]
-        print(f"[bypass] {json.dumps(r)}")
+        time.sleep(1)
+        destination, param = extract_dynamic(loot_url)
+        time.sleep(0.5)
+        if destination:
+            return destination
+        print(f"[bypass] no dynamic target found in loot url")
     except Exception as e:
         print(f"[✗] bypass error: {e}")
     return None
 
 def _human_delay():
-    """Random delay to simulate human behavior - avoids 'too fast' detection"""
-    time.sleep(random.uniform(2, 2.5))
+    time.sleep(random.uniform(2.2, 2.5))
 
 def getKey(url, verbose_cb=None, service=None):
     start_time = time.time()
     vcb = verbose_cb or (lambda msg: None)
-    
     fp = _random_fingerprint()
     session = _build_session(fp)
     session.headers.update({
@@ -300,7 +321,6 @@ def getKey(url, verbose_cb=None, service=None):
         sh         = int(screen_res.split("x")[1])
         user_agent = fp["user_agent"]
         nav_plat   = fp["navigator_platform"]
-
         session.headers["Referer"] = f"https://auth.platorelay.com/a?d={ticket}"
 
         key = checkKey(ticket, session)
@@ -323,7 +343,6 @@ def getKey(url, verbose_cb=None, service=None):
             total       = (meta.get("activeRevenueProfile") or {}).get("checkpointCount", 0)
             et_on       = meta.get("enableEventTracker", False)
             svc         = _resolve_service(service, meta)
-
             vcb(f"checkpoint {completed}/{total}")
 
             if completed >= total:
@@ -343,45 +362,38 @@ def getKey(url, verbose_cb=None, service=None):
             if not loot_url:
                 msg = (resp.get("data") or {}).get("message") or resp.get("message") or ""
                 msg_lower = msg.lower()
-                
-                # Detect "too fast" and auto-retry with longer delay
                 if "too fast" in msg_lower or "slow down" in msg_lower:
                     too_fast_retries += 1
                     wait_time = 3 + too_fast_retries * 2
                     print(f"[!] too fast detected, waiting {wait_time}s... (retry #{too_fast_retries})")
                     time.sleep(wait_time)
                     continue
-                
                 too_fast_retries = 0
                 print(f"[step] {msg or json.dumps(resp)}")
-
                 vcb("Solving CAPTCHA...")
                 cap = solve_captcha()
                 if not cap:
                     print("[!] captcha failed, retrying...")
                     _human_delay()
                     continue
-
                 print(f"[captcha] {cap[:24]}...")
                 payload["captcha"] = cap
                 payload["stream"]  = sk()
                 payload["meta"]    = mk()
                 resp     = session.put(step_url, json=payload).json()
                 loot_url = (resp.get("data") or {}).get("url") if resp.get("success") else None
-
-            if not loot_url:
-                print(f"[step] no url — {json.dumps(resp)}")
-                key = checkKey(ticket, session)
-                if key:
-                    elapsed = time.time() - start_time
-                    vcb(f"✓ Done in {elapsed:.2f}s")
-                    return key
-                _human_delay()
-                continue
+                if not loot_url:
+                    print(f"[step] no url — {json.dumps(resp)}")
+                    key = checkKey(ticket, session)
+                    if key:
+                        elapsed = time.time() - start_time
+                        vcb(f"✓ Done in {elapsed:.2f}s")
+                        return key
+                    _human_delay()
+                    continue
 
             vcb("Bypassing ad link...")
             print(f"[loot] {loot_url[:80]}...")
-
             result = _bypass_loot(loot_url)
             if not result:
                 print("[!] loot bypass failed, retrying...")
@@ -389,7 +401,6 @@ def getKey(url, verbose_cb=None, service=None):
                 continue
 
             print(f"[solved] {result[:80]}...")
-
             new_ticket = _get_param(result, "d") or _get_param(result, "ticket")
             if new_ticket:
                 ticket     = new_ticket
@@ -402,14 +413,11 @@ def getKey(url, verbose_cb=None, service=None):
                 except Exception:
                     pass
 
-            # Human-like delay between checkpoints to avoid "too fast" detection
             _human_delay()
 
-        # Ensure we've completed all checkpoints before unlocking
         meta = _get_metadata(ticket, session) or {}
         completed = meta.get("completed", 0)
         total = (meta.get("activeRevenueProfile") or {}).get("checkpointCount", 0)
-        
         if completed < total:
             vcb(f"Waiting for checkpoints to sync ({completed}/{total})...")
             time.sleep(2)
@@ -427,20 +435,15 @@ def getKey(url, verbose_cb=None, service=None):
             "stream":   generate_stream(ticket, sw, sh) if et_on else "",
             "resolved": resolved,
         }
-        
         unlock_resp = session.put(step_url, json=unlock_payload).json()
-        
         if unlock_resp.get("success"):
             print(f"[unlock] ✓ Success — {(unlock_resp.get('data') or {}).get('url', '')}")
         else:
-
             msg = (unlock_resp.get("data") or {}).get("message") or unlock_resp.get("message") or ""
             print(f"[unlock] Attempt 1 failed: {msg}")
             print(f"[unlock] Retrying in 3s...")
             time.sleep(3)
-            
             unlock_resp = session.put(step_url, json=unlock_payload).json()
-            
             if unlock_resp.get("success"):
                 print(f"[unlock] ✓ Success (retry) — {(unlock_resp.get('data') or {}).get('url', '')}")
             else:
