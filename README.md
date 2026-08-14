@@ -22,7 +22,9 @@ If API https://banana-solver.vercel.app/api/solver fails, replace it with your o
 ## Info
 
 Main discord server: https://discord.gg/4FfnpyPg27
+
 Project discord server (other souce): https://discord.gg/mkSnxZPv4S
+
 Made by: archivistex
 
 ---
