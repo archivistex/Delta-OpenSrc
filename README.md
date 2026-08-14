@@ -8,7 +8,7 @@ pip install curl_cffi requests pycryptodome cryptography numpy Pillow
 ---
 ## Run code
 ```bash
-python deltax.py
+python3 delta.py
 ```
 
 or run the run.bat file
